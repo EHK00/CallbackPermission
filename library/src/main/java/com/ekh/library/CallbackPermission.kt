@@ -2,24 +2,34 @@ package com.ekh.library
 
 import android.content.Context
 import android.content.pm.PackageManager
+import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import kotlin.properties.ReadOnlyProperty
+import kotlin.reflect.KProperty
 
 
-fun AppCompatActivity.callbackPermission(): Lazy<CallbackPermission> = lazy { CallbackPermission(this) }
+fun ComponentActivity.callbackPermission(): CallbackPermission = CallbackPermissionImpl(this)
 
-fun Fragment.callbackPermission(): Lazy<CallbackPermission> = lazy { CallbackPermission(this) }
+fun Fragment.callbackPermission(): CallbackPermission = CallbackPermissionImpl(this)
 
-class CallbackPermission {
+interface CallbackPermission {
+    fun hasPermissions(vararg permissions: String): Boolean
+
+    fun requestPermission(vararg permissions: String, callback: PermissionCheckCallBack)
+}
+
+internal class CallbackPermissionImpl : CallbackPermission {
     private val context: Context
     private val permissionLauncher: ActivityResultLauncher<Array<String>>
+
     private var onRequest = false
     private var callback: PermissionCheckCallBack? = null
 
-    constructor(activity: AppCompatActivity) {
+    constructor(activity: ComponentActivity) {
         context = activity
         permissionLauncher = activity.registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -39,7 +49,7 @@ class CallbackPermission {
         callback?.onResult(deniedPermissions)
     }
 
-    fun isPermissionGranted(vararg permissions: String): Boolean {
+    override fun hasPermissions(vararg permissions: String): Boolean {
         val deniedPermission = permissions.asSequence()
             .map { ContextCompat.checkSelfPermission(context, it) }
             .filter { it != PackageManager.PERMISSION_GRANTED }
@@ -48,13 +58,14 @@ class CallbackPermission {
         return deniedPermission.toList().isEmpty()
     }
 
-    fun requestPermission(vararg permissions: String, callback: PermissionCheckCallBack) {
+    override fun requestPermission(vararg permissions: String, callback: PermissionCheckCallBack) {
         if (onRequest) return
         onRequest = true
         this.callback = callback
 
         permissionLauncher.launch(arrayOf(*permissions))
     }
+
 }
 
 
