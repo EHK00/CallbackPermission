@@ -22,31 +22,34 @@ interface CallbackPermission {
     fun requestPermission(vararg permissions: String, callback: PermissionCheckCallBack)
 }
 
-internal class CallbackPermissionImpl : CallbackPermission {
+
+private class CallbackPermissionImpl : CallbackPermission {
     private val context: Context
     private val permissionLauncher: ActivityResultLauncher<Array<String>>
 
-    private var onRequest = false
+    private var onRequest: Boolean = false
     private var callback: PermissionCheckCallBack? = null
+
+    private val doOnComplete: (Map<String, Boolean>) -> Unit = { results: Map<String, Boolean> ->
+        onRequest = false
+        val deniedPermissions = results.filter { !it.value }.keys
+        callback?.onResult(deniedPermissions)
+    }
 
     constructor(activity: ComponentActivity) {
         context = activity
-        permissionLauncher = activity.registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { doOnComplete(it) }
+        permissionLauncher =
+            activity.registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+                doOnComplete(it)
+            }
     }
 
     constructor(fragment: Fragment) {
         context = fragment.requireContext()
-        permissionLauncher = fragment.registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { doOnComplete(it) }
-    }
-
-    private val doOnComplete = { results: Map<String, Boolean> ->
-        onRequest = false
-        val deniedPermissions = results.filter { !it.value }.keys
-        callback?.onResult(deniedPermissions)
+        permissionLauncher =
+            fragment.registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+                doOnComplete(it)
+            }
     }
 
     override fun hasPermissions(vararg permissions: String): Boolean {
@@ -55,7 +58,7 @@ internal class CallbackPermissionImpl : CallbackPermission {
             .filter { it != PackageManager.PERMISSION_GRANTED }
             .take(1)
 
-        return deniedPermission.toList().isEmpty()
+        return deniedPermission.toSet().isEmpty()
     }
 
     override fun requestPermission(vararg permissions: String, callback: PermissionCheckCallBack) {
