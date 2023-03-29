@@ -38,3 +38,7 @@ callbackPermission.requestPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
 ```kotlin
 val isPermitted = callbackPermission.hasPermissions(Manifest.permission.ACCESS_COARSE_LOCATION)
 ```
+
+## TBD
+
+library를 mavencentral로 배포 
